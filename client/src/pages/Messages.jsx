@@ -8,7 +8,7 @@ function Messages() {
   useEffect(() => {
     const getMessages = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/angry");
+        const response = await fetch("https://still-angry-backend.onrender.com/api/angry");
 
         const data = await response.json();
 

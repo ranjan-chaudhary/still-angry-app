@@ -17,7 +17,7 @@ function StillAngry() {
     setStatus("");
 
     try {
-      const response = await fetch("http://localhost:5000/api/angry", {
+      const response = await fetch("https://still-angry-backend.onrender.com/api/angry", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
