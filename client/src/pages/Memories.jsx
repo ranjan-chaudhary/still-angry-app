@@ -7,7 +7,8 @@ function Memories() {
   const [memories, setMemories] = useState([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [image, setImage] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -36,21 +37,24 @@ function Memories() {
     loadMemories();
   }, []);
 
+  // Select image and create preview
   const handleImageChange = (e) => {
     const file = e.target.files[0];
 
     if (!file) return;
 
+    setImageFile(file);
+
     const reader = new FileReader();
 
     reader.onloadend = () => {
-      setImage(reader.result);
+      setImagePreview(reader.result);
     };
 
     reader.readAsDataURL(file);
   };
 
-  // Add memory to MongoDB
+  // Add memory
   const addMemory = async (e) => {
     e.preventDefault();
 
@@ -60,6 +64,35 @@ function Memories() {
     setStatus("");
 
     try {
+      let imageUrl = "";
+
+      // Upload image to Cloudinary first
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append("image", imageFile);
+
+        const uploadResponse = await fetch(
+          `${API_URL}/api/upload`,
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+        const uploadData = await uploadResponse.json();
+
+        if (!uploadData.success) {
+          setStatus(
+            uploadData.message || "Could not upload the image."
+          );
+          setAdding(false);
+          return;
+        }
+
+        imageUrl = uploadData.imageUrl;
+      }
+
+      // Save memory with Cloudinary image URL
       const response = await fetch(`${API_URL}/api/memories`, {
         method: "POST",
         headers: {
@@ -68,7 +101,7 @@ function Memories() {
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim(),
-          image,
+          image: imageUrl,
         }),
       });
 
@@ -82,7 +115,9 @@ function Memories() {
 
         setTitle("");
         setDescription("");
-        setImage("");
+        setImageFile(null);
+        setImagePreview("");
+
         setStatus("Memory added ❤️");
       } else {
         setStatus(data.message || "Could not add the memory.");
@@ -95,7 +130,7 @@ function Memories() {
     }
   };
 
-  // Delete memory from MongoDB
+  // Delete memory
   const removeMemory = async (id) => {
     try {
       setStatus("");
@@ -175,13 +210,16 @@ function Memories() {
             />
           </label>
 
-          {image && (
+          {imagePreview && (
             <div className="image-preview">
-              <img src={image} alt="Preview" />
+              <img src={imagePreview} alt="Preview" />
 
               <button
                 type="button"
-                onClick={() => setImage("")}
+                onClick={() => {
+                  setImageFile(null);
+                  setImagePreview("");
+                }}
                 disabled={adding}
               >
                 × Remove photo

@@ -2,7 +2,20 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
+const cloudinary = require("cloudinary").v2;
+const multer = require("multer");
 require("dotenv").config();
+// Cloudinary configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Multer configuration
+const upload = multer({
+  storage: multer.memoryStorage(),
+});
 
 
 
@@ -436,3 +449,49 @@ app.delete("/api/memories/:id", async (req, res) => {
     });
   }
 });
+// ===============================
+// IMAGE UPLOAD
+// ===============================
+
+app.post(
+  "/api/upload",
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "Please select an image.",
+        });
+      }
+
+      // Upload image buffer to Cloudinary
+      const uploadResult = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: "still-angry-memories",
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+
+        stream.end(req.file.buffer);
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Image uploaded successfully ❤️",
+        imageUrl: uploadResult.secure_url,
+      });
+    } catch (error) {
+      console.error("Error uploading image:", error);
+
+      res.status(500).json({
+        success: false,
+        message: "Could not upload the image.",
+      });
+    }
+  }
+);
