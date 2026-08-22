@@ -6,7 +6,8 @@ require("dotenv").config();
 
 const AngryMessage = require("./models/AngryMessage");
 const Letter = require("./models/Letter");
-
+const AngryMessage = require("./models/AngryMessage");
+const Letter = require("./models/Letter");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -216,4 +217,57 @@ app.put("/api/letters/:type", async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+});
+// ===============================
+// TALK TO ME
+// ===============================
+
+// Get the Talk to Me message
+app.get("/api/talk-to-me", async (req, res) => {
+  try {
+    const talkMessage = await TalkMessage.findOne();
+
+    res.status(200).json({
+      success: true,
+      content: talkMessage ? talkMessage.content : "",
+    });
+  } catch (error) {
+    console.error("Error getting Talk to Me message:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not get the message.",
+    });
+  }
+});
+
+// Create or update the Talk to Me message
+app.put("/api/talk-to-me", async (req, res) => {
+  try {
+    const { content } = req.body;
+
+    let talkMessage = await TalkMessage.findOne();
+
+    if (talkMessage) {
+      talkMessage.content = content || "";
+      await talkMessage.save();
+    } else {
+      talkMessage = await TalkMessage.create({
+        content: content || "",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Message saved successfully ❤️",
+      talkMessage,
+    });
+  } catch (error) {
+    console.error("Error saving Talk to Me message:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not save the message.",
+    });
+  }
 });

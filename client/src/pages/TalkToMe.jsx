@@ -1,14 +1,67 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-function TalkToMe() {
-  const [message, setMessage] = useState(() => {
-    return localStorage.getItem("talk-to-me-message") || "";
-  });
+const API_URL = "https://still-angry-backend.onrender.com";
 
+function TalkToMe() {
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState("");
+
+  // Load message from MongoDB
   useEffect(() => {
-    localStorage.setItem("talk-to-me-message", message);
-  }, [message]);
+    const loadMessage = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/talk-to-me`);
+        const data = await response.json();
+
+        if (data.success) {
+          setMessage(data.content || "");
+        } else {
+          setStatus("Could not load the message.");
+        }
+      } catch (error) {
+        console.error("Error loading message:", error);
+        setStatus("Could not connect to the server.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMessage();
+  }, []);
+
+  // Save message to MongoDB
+  const saveMessage = async () => {
+    setSaving(true);
+    setStatus("");
+
+    try {
+      const response = await fetch(`${API_URL}/api/talk-to-me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: message,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setStatus("Saved ❤️");
+      } else {
+        setStatus(data.message || "Could not save the message.");
+      }
+    } catch (error) {
+      console.error("Error saving message:", error);
+      setStatus("Could not connect to the server.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="talk-page">
@@ -33,17 +86,30 @@ function TalkToMe() {
             No judgment. Just you and your thoughts.
           </p>
 
-          <textarea
-            className="talk-editor"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Tell me what's on your mind..."
-            rows="10"
-          />
+          {loading ? (
+            <p>Loading...</p>
+          ) : (
+            <>
+              <textarea
+                className="talk-editor"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Tell me what's on your mind..."
+                rows="10"
+                disabled={saving}
+              />
 
-          <p className="talk-saving">
-            Your words are saved automatically ❤️
-          </p>
+              <button
+                type="button"
+                onClick={saveMessage}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save ❤️"}
+              </button>
+            </>
+          )}
+
+          {status && <p className="talk-saving">{status}</p>}
         </div>
       </main>
     </div>
