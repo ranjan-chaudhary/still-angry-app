@@ -23,7 +23,10 @@ function Letter() {
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    if (!letter) return;
+    if (!letter) {
+      setLoading(false);
+      return;
+    }
 
     const loadLetter = async () => {
       setLoading(true);
@@ -38,6 +41,8 @@ function Letter() {
 
         if (data.success) {
           setMessage(data.content || "");
+        } else {
+          setStatus(data.message || "Could not load the letter.");
         }
       } catch (error) {
         console.error("Error loading letter:", error);
@@ -48,7 +53,7 @@ function Letter() {
     };
 
     loadLetter();
-  }, [type, letter]);
+  }, [type]); // IMPORTANT: only type here
 
   const saveLetter = async () => {
     setSaving(true);
@@ -140,7 +145,9 @@ function Letter() {
             </>
           )}
 
-          {status && <p className="letter-status">{status}</p>}
+          {status && (
+            <p className="letter-status">{status}</p>
+          )}
 
           <p className="letter-signature">
             Written especially for you ❤️
