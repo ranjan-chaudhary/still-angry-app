@@ -1,19 +1,40 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-function Memories() {
-  const [memories, setMemories] = useState(() => {
-    const savedMemories = localStorage.getItem("our-memories");
-    return savedMemories ? JSON.parse(savedMemories) : [];
-  });
+const API_URL = "https://still-angry-backend.onrender.com";
 
+function Memories() {
+  const [memories, setMemories] = useState([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState("");
 
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [status, setStatus] = useState("");
+
+  // Load memories from MongoDB
   useEffect(() => {
-    localStorage.setItem("our-memories", JSON.stringify(memories));
-  }, [memories]);
+    const loadMemories = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/memories`);
+        const data = await response.json();
+
+        if (data.success) {
+          setMemories(data.memories || []);
+        } else {
+          setStatus(data.message || "Could not load memories.");
+        }
+      } catch (error) {
+        console.error("Error loading memories:", error);
+        setStatus("Could not connect to the server.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMemories();
+  }, []);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -29,32 +50,80 @@ function Memories() {
     reader.readAsDataURL(file);
   };
 
-  const addMemory = (e) => {
+  // Add memory to MongoDB
+  const addMemory = async (e) => {
     e.preventDefault();
 
     if (!title.trim()) return;
 
-    const newMemory = {
-      id: Date.now(),
-      title: title.trim(),
-      description: description.trim(),
-      image,
-    };
+    setAdding(true);
+    setStatus("");
 
-    setMemories((currentMemories) => [
-      ...currentMemories,
-      newMemory,
-    ]);
+    try {
+      const response = await fetch(`${API_URL}/api/memories`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          image,
+        }),
+      });
 
-    setTitle("");
-    setDescription("");
-    setImage("");
+      const data = await response.json();
+
+      if (data.success) {
+        setMemories((currentMemories) => [
+          ...currentMemories,
+          data.memory,
+        ]);
+
+        setTitle("");
+        setDescription("");
+        setImage("");
+        setStatus("Memory added ❤️");
+      } else {
+        setStatus(data.message || "Could not add the memory.");
+      }
+    } catch (error) {
+      console.error("Error adding memory:", error);
+      setStatus("Could not connect to the server.");
+    } finally {
+      setAdding(false);
+    }
   };
 
-  const removeMemory = (id) => {
-    setMemories((currentMemories) =>
-      currentMemories.filter((memory) => memory.id !== id)
-    );
+  // Delete memory from MongoDB
+  const removeMemory = async (id) => {
+    try {
+      setStatus("");
+
+      const response = await fetch(
+        `${API_URL}/api/memories/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMemories((currentMemories) =>
+          currentMemories.filter(
+            (memory) => memory._id !== id
+          )
+        );
+
+        setStatus("Memory deleted.");
+      } else {
+        setStatus(data.message || "Could not delete the memory.");
+      }
+    } catch (error) {
+      console.error("Error deleting memory:", error);
+      setStatus("Could not connect to the server.");
+    }
   };
 
   return (
@@ -85,6 +154,7 @@ function Memories() {
             placeholder="Memory title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            disabled={adding}
           />
 
           <textarea
@@ -92,6 +162,7 @@ function Memories() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows="4"
+            disabled={adding}
           />
 
           <label className="photo-upload">
@@ -100,30 +171,47 @@ function Memories() {
               type="file"
               accept="image/*"
               onChange={handleImageChange}
+              disabled={adding}
             />
           </label>
 
           {image && (
             <div className="image-preview">
               <img src={image} alt="Preview" />
-              <button type="button" onClick={() => setImage("")}>
+
+              <button
+                type="button"
+                onClick={() => setImage("")}
+                disabled={adding}
+              >
                 × Remove photo
               </button>
             </div>
           )}
 
-          <button type="submit">+ Add Memory</button>
+          <button type="submit" disabled={adding}>
+            {adding ? "Adding..." : "+ Add Memory"}
+          </button>
         </form>
 
+        {status && (
+          <p className="memories-status">{status}</p>
+        )}
+
         <div className="memories-grid">
-          {memories.length === 0 ? (
+          {loading ? (
+            <div className="empty-memories">
+              <span>📷</span>
+              <p>Loading memories...</p>
+            </div>
+          ) : memories.length === 0 ? (
             <div className="empty-memories">
               <span>📷</span>
               <p>Your memories will appear here ❤️</p>
             </div>
           ) : (
             memories.map((memory) => (
-              <div className="memory-card" key={memory.id}>
+              <div className="memory-card" key={memory._id}>
                 {memory.image && (
                   <img
                     src={memory.image}
@@ -142,7 +230,7 @@ function Memories() {
                   <button
                     type="button"
                     className="delete-memory"
-                    onClick={() => removeMemory(memory.id)}
+                    onClick={() => removeMemory(memory._id)}
                   >
                     × Remove
                   </button>

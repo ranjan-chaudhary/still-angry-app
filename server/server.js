@@ -10,6 +10,7 @@ const AngryMessage = require("./models/AngryMessage");
 const Letter = require("./models/Letter");
 const TalkMessage = require("./models/TalkMessage");
 const Song = require("./models/Song");
+const Memory = require("./models/Memory");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -351,6 +352,87 @@ app.delete("/api/songs/:id", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Could not delete the song.",
+    });
+  }
+});
+// ===============================
+// OUR MEMORIES
+// ===============================
+
+// Get all memories
+app.get("/api/memories", async (req, res) => {
+  try {
+    const memories = await Memory.find().sort({ createdAt: 1 });
+
+    res.status(200).json({
+      success: true,
+      memories,
+    });
+  } catch (error) {
+    console.error("Error getting memories:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not get memories.",
+    });
+  }
+});
+
+// Add a memory
+app.post("/api/memories", async (req, res) => {
+  try {
+    const { title, description, image } = req.body;
+
+    if (!title || title.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Memory title is required.",
+      });
+    }
+
+    const newMemory = await Memory.create({
+      title: title.trim(),
+      description: description ? description.trim() : "",
+      image: image || "",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Memory added ❤️",
+      memory: newMemory,
+    });
+  } catch (error) {
+    console.error("Error adding memory:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not add the memory.",
+    });
+  }
+});
+
+// Delete a memory
+app.delete("/api/memories/:id", async (req, res) => {
+  try {
+    const memory = await Memory.findByIdAndDelete(req.params.id);
+
+    if (!memory) {
+      return res.status(404).json({
+        success: false,
+        message: "Memory not found.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Memory deleted.",
+    });
+  } catch (error) {
+    console.error("Error deleting memory:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not delete the memory.",
     });
   }
 });
