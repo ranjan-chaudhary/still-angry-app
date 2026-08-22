@@ -21,6 +21,7 @@ const upload = multer({
 
 const AngryMessage = require("./models/AngryMessage");
 const Letter = require("./models/Letter");
+const SpecialDay = require("./models/SpecialDay");
 const TalkMessage = require("./models/TalkMessage");
 const Song = require("./models/Song");
 const Memory = require("./models/Memory");
@@ -495,3 +496,88 @@ app.post(
     }
   }
 );
+// ===============================
+// SPECIAL DAYS
+// ===============================
+
+// Get all special days
+app.get("/api/special-days", async (req, res) => {
+  try {
+    const days = await SpecialDay.find().sort({
+      date: 1,
+    });
+
+    res.status(200).json({
+      success: true,
+      days,
+    });
+  } catch (error) {
+    console.error("Error getting special days:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not get special days.",
+    });
+  }
+});
+
+// Add a special day
+app.post("/api/special-days", async (req, res) => {
+  try {
+    const { title, date, message } = req.body;
+
+    if (!title || !title.trim() || !date) {
+      return res.status(400).json({
+        success: false,
+        message: "Title and date are required.",
+      });
+    }
+
+    const newDay = await SpecialDay.create({
+      title: title.trim(),
+      date,
+      message: message ? message.trim() : "",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Special day added ❤️",
+      day: newDay,
+    });
+  } catch (error) {
+    console.error("Error adding special day:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not add the special day.",
+    });
+  }
+});
+
+// Delete a special day
+app.delete("/api/special-days/:id", async (req, res) => {
+  try {
+    const deletedDay = await SpecialDay.findByIdAndDelete(
+      req.params.id
+    );
+
+    if (!deletedDay) {
+      return res.status(404).json({
+        success: false,
+        message: "Special day not found.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Special day deleted.",
+    });
+  } catch (error) {
+    console.error("Error deleting special day:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not delete the special day.",
+    });
+  }
+});
