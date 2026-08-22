@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 const AngryMessage = require("./models/AngryMessage");
+const Letter = require("./models/Letter");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -32,7 +33,6 @@ app.get("/", (req, res) => {
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
 
-  // Check username and password
   if (
     username !== process.env.ADMIN_USERNAME ||
     password !== process.env.ADMIN_PASSWORD
@@ -43,7 +43,6 @@ app.post("/api/login", (req, res) => {
     });
   }
 
-  // Create JWT token
   const token = jwt.sign(
     {
       username: process.env.ADMIN_USERNAME,
@@ -65,7 +64,6 @@ app.post("/api/login", (req, res) => {
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  // Check if token exists
   if (!authHeader) {
     return res.status(401).json({
       success: false,
@@ -73,7 +71,6 @@ const authenticateToken = (req, res, next) => {
     });
   }
 
-  // Expected format: Bearer TOKEN
   const token = authHeader.split(" ")[1];
 
   if (!token) {
@@ -87,7 +84,6 @@ const authenticateToken = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     req.user = decoded;
-
     next();
   } catch (error) {
     return res.status(403).json({
@@ -97,12 +93,15 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
-// Save a new message
+// ===============================
+// ANGRY MESSAGES
+// ===============================
+
+// Save a new angry message
 app.post("/api/angry", async (req, res) => {
   try {
     const { message } = req.body;
 
-    // Check if the message is empty
     if (!message || message.trim() === "") {
       return res.status(400).json({
         success: false,
@@ -110,7 +109,6 @@ app.post("/api/angry", async (req, res) => {
       });
     }
 
-    // Save message to MongoDB
     const newMessage = await AngryMessage.create({
       message: message.trim(),
     });
@@ -132,7 +130,7 @@ app.post("/api/angry", async (req, res) => {
   }
 });
 
-// Get all messages - PROTECTED
+// Get all angry messages
 app.get("/api/angry", async (req, res) => {
   try {
     const messages = await AngryMessage.find().sort({
@@ -153,7 +151,69 @@ app.get("/api/angry", async (req, res) => {
   }
 });
 
-// Start server
+// ===============================
+// OPEN WHEN LETTERS
+// ===============================
+
+// Get one Open When letter
+app.get("/api/letters/:type", async (req, res) => {
+  try {
+    const { type } = req.params;
+
+    const letter = await Letter.findOne({ type });
+
+    res.status(200).json({
+      success: true,
+      content: letter ? letter.content : "",
+    });
+  } catch (error) {
+    console.error("Error getting letter:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not get the letter.",
+    });
+  }
+});
+
+// Create or update an Open When letter
+app.put("/api/letters/:type", async (req, res) => {
+  try {
+    const { type } = req.params;
+    const { content } = req.body;
+
+    const letter = await Letter.findOneAndUpdate(
+      { type },
+      {
+        type,
+        content: content || "",
+      },
+      {
+        new: true,
+        upsert: true,
+        runValidators: true,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Letter saved successfully ❤️",
+      letter: letter,
+    });
+  } catch (error) {
+    console.error("Error saving letter:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not save the letter.",
+    });
+  }
+});
+
+// ===============================
+// START SERVER - ALWAYS LAST
+// ===============================
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
