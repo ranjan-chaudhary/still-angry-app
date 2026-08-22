@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
-const AngryMessage = require("./models/AngryMessage");
+
 const Letter = require("./models/Letter");
 const AngryMessage = require("./models/AngryMessage");
 const Letter = require("./models/Letter");
