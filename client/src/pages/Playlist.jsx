@@ -1,45 +1,113 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+const API_URL = "https://still-angry-backend.onrender.com";
+
 function Playlist() {
-  const [songs, setSongs] = useState(() => {
-    const savedSongs = localStorage.getItem("our-playlist");
-
-    return savedSongs ? JSON.parse(savedSongs) : [];
-  });
-
+  const [songs, setSongs] = useState([]);
   const [songName, setSongName] = useState("");
   const [artist, setArtist] = useState("");
   const [songLink, setSongLink] = useState("");
 
-  // Save songs whenever the playlist changes
-  useEffect(() => {
-    localStorage.setItem("our-playlist", JSON.stringify(songs));
-  }, [songs]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [status, setStatus] = useState("");
 
-  const addSong = (e) => {
+  // Load songs from MongoDB
+  useEffect(() => {
+    const loadSongs = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/songs`);
+        const data = await response.json();
+
+        if (data.success) {
+          setSongs(data.songs || []);
+        } else {
+          setStatus(data.message || "Could not load songs.");
+        }
+      } catch (error) {
+        console.error("Error loading songs:", error);
+        setStatus("Could not connect to the server.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSongs();
+  }, []);
+
+  // Add song to MongoDB
+  const addSong = async (e) => {
     e.preventDefault();
 
     if (!songName.trim()) return;
 
-    const newSong = {
-      id: Date.now(),
-      name: songName.trim(),
-      artist: artist.trim(),
-      link: songLink.trim(),
-    };
+    setAdding(true);
+    setStatus("");
 
-    setSongs((currentSongs) => [...currentSongs, newSong]);
+    try {
+      const response = await fetch(`${API_URL}/api/songs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: songName.trim(),
+          artist: artist.trim(),
+          link: songLink.trim(),
+        }),
+      });
 
-    setSongName("");
-    setArtist("");
-    setSongLink("");
+      const data = await response.json();
+
+      if (data.success) {
+        setSongs((currentSongs) => [
+          ...currentSongs,
+          data.song,
+        ]);
+
+        setSongName("");
+        setArtist("");
+        setSongLink("");
+        setStatus("Song added ❤️");
+      } else {
+        setStatus(data.message || "Could not add the song.");
+      }
+    } catch (error) {
+      console.error("Error adding song:", error);
+      setStatus("Could not connect to the server.");
+    } finally {
+      setAdding(false);
+    }
   };
 
-  const removeSong = (id) => {
-    setSongs((currentSongs) =>
-      currentSongs.filter((song) => song.id !== id)
-    );
+  // Delete song from MongoDB
+  const removeSong = async (id) => {
+    try {
+      setStatus("");
+
+      const response = await fetch(
+        `${API_URL}/api/songs/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSongs((currentSongs) =>
+          currentSongs.filter((song) => song._id !== id)
+        );
+
+        setStatus("Song deleted.");
+      } else {
+        setStatus(data.message || "Could not delete the song.");
+      }
+    } catch (error) {
+      console.error("Error deleting song:", error);
+      setStatus("Could not connect to the server.");
+    }
   };
 
   return (
@@ -55,11 +123,15 @@ function Playlist() {
         <div className="playlist-header">
           <div className="playlist-icon">🎵</div>
 
-          <p className="small-heading">A LITTLE PLAYLIST FOR YOU</p>
+          <p className="small-heading">
+            A LITTLE PLAYLIST FOR YOU
+          </p>
 
           <h1>Songs That Remind Me of You</h1>
 
-          <p>Add the songs that hold a special meaning for you.</p>
+          <p>
+            Add the songs that hold a special meaning for you.
+          </p>
         </div>
 
         <form className="add-song-form" onSubmit={addSong}>
@@ -70,6 +142,7 @@ function Playlist() {
             placeholder="Song name"
             value={songName}
             onChange={(e) => setSongName(e.target.value)}
+            disabled={adding}
           />
 
           <input
@@ -77,6 +150,7 @@ function Playlist() {
             placeholder="Artist name"
             value={artist}
             onChange={(e) => setArtist(e.target.value)}
+            disabled={adding}
           />
 
           <input
@@ -84,20 +158,30 @@ function Playlist() {
             placeholder="Spotify / YouTube link (optional)"
             value={songLink}
             onChange={(e) => setSongLink(e.target.value)}
+            disabled={adding}
           />
 
-          <button type="submit">+ Add Song</button>
+          <button type="submit" disabled={adding}>
+            {adding ? "Adding..." : "+ Add Song"}
+          </button>
         </form>
 
+        {status && <p className="playlist-status">{status}</p>}
+
         <div className="playlist-list">
-          {songs.length === 0 ? (
+          {loading ? (
+            <div className="empty-playlist">
+              <span>🎧</span>
+              <p>Loading playlist...</p>
+            </div>
+          ) : songs.length === 0 ? (
             <div className="empty-playlist">
               <span>🎧</span>
               <p>No songs yet. Add your first song above ❤️</p>
             </div>
           ) : (
             songs.map((song, index) => (
-              <div className="song-card" key={song.id}>
+              <div className="song-card" key={song._id}>
                 <span className="song-number">
                   {String(index + 1).padStart(2, "0")}
                 </span>
@@ -121,7 +205,7 @@ function Playlist() {
                 <button
                   type="button"
                   className="delete-song"
-                  onClick={() => removeSong(song.id)}
+                  onClick={() => removeSong(song._id)}
                 >
                   ×
                 </button>

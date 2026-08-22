@@ -8,6 +8,8 @@ require("dotenv").config();
 
 const AngryMessage = require("./models/AngryMessage");
 const Letter = require("./models/Letter");
+const TalkMessage = require("./models/TalkMessage");
+const Song = require("./models/Song");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -268,6 +270,87 @@ app.put("/api/talk-to-me", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Could not save the message.",
+    });
+  }
+});
+// ===============================
+// OUR PLAYLIST
+// ===============================
+
+// Get all songs
+app.get("/api/songs", async (req, res) => {
+  try {
+    const songs = await Song.find().sort({ createdAt: 1 });
+
+    res.status(200).json({
+      success: true,
+      songs,
+    });
+  } catch (error) {
+    console.error("Error getting songs:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not get songs.",
+    });
+  }
+});
+
+// Add a song
+app.post("/api/songs", async (req, res) => {
+  try {
+    const { name, artist, link } = req.body;
+
+    if (!name || name.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Song name is required.",
+      });
+    }
+
+    const newSong = await Song.create({
+      name: name.trim(),
+      artist: artist ? artist.trim() : "",
+      link: link ? link.trim() : "",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Song added ❤️",
+      song: newSong,
+    });
+  } catch (error) {
+    console.error("Error adding song:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not add the song.",
+    });
+  }
+});
+
+// Delete a song
+app.delete("/api/songs/:id", async (req, res) => {
+  try {
+    const song = await Song.findByIdAndDelete(req.params.id);
+
+    if (!song) {
+      return res.status(404).json({
+        success: false,
+        message: "Song not found.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Song deleted.",
+    });
+  } catch (error) {
+    console.error("Error deleting song:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not delete the song.",
     });
   }
 });
