@@ -1,22 +1,68 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+const API_URL = "https://still-angry-backend.onrender.com";
+
 function Surprise() {
-  const [surprise, setSurprise] = useState(() => {
-    return (
-      localStorage.getItem("little-surprise-message") ||
-      ""
-    );
-  });
-
+  const [surprise, setSurprise] = useState("");
   const [opened, setOpened] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState("");
 
+  // Load surprise from MongoDB
   useEffect(() => {
-    localStorage.setItem(
-      "little-surprise-message",
-      surprise
-    );
-  }, [surprise]);
+    const loadSurprise = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/surprise`);
+        const data = await response.json();
+
+        if (data.success) {
+          setSurprise(data.content || "");
+        } else {
+          setStatus(data.message || "Could not load the surprise.");
+        }
+      } catch (error) {
+        console.error("Error loading surprise:", error);
+        setStatus("Could not connect to the server.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSurprise();
+  }, []);
+
+  // Save surprise to MongoDB
+  const saveSurprise = async () => {
+    setSaving(true);
+    setStatus("");
+
+    try {
+      const response = await fetch(`${API_URL}/api/surprise`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: surprise,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setStatus("Surprise saved ❤️");
+      } else {
+        setStatus(data.message || "Could not save the surprise.");
+      }
+    } catch (error) {
+      console.error("Error saving surprise:", error);
+      setStatus("Could not connect to the server.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="surprise-page">
@@ -39,7 +85,9 @@ function Surprise() {
 
           <h1>A Little Surprise</h1>
 
-          {!opened ? (
+          {loading ? (
+            <p>Loading your surprise...</p>
+          ) : !opened ? (
             <>
               <p className="surprise-subtitle">
                 There's something waiting for you...
@@ -57,17 +105,24 @@ function Surprise() {
               <textarea
                 className="surprise-editor"
                 value={surprise}
-                onChange={(e) =>
-                  setSurprise(e.target.value)
-                }
+                onChange={(e) => setSurprise(e.target.value)}
                 placeholder="Write your surprise message here..."
                 rows="9"
               />
 
-              <p className="surprise-saving">
-                Your surprise is saved automatically ❤️
-              </p>
+              <button
+                type="button"
+                className="save-surprise-button"
+                onClick={saveSurprise}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save Surprise ❤️"}
+              </button>
             </div>
+          )}
+
+          {status && (
+            <p className="surprise-saving">{status}</p>
           )}
         </div>
       </main>

@@ -22,6 +22,7 @@ const upload = multer({
 const AngryMessage = require("./models/AngryMessage");
 const Letter = require("./models/Letter");
 const SpecialDay = require("./models/SpecialDay");
+const Surprise = require("./models/Surprise");
 const TalkMessage = require("./models/TalkMessage");
 const Song = require("./models/Song");
 const Memory = require("./models/Memory");
@@ -578,6 +579,59 @@ app.delete("/api/special-days/:id", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Could not delete the special day.",
+    });
+  }
+});
+// ===============================
+// LITTLE SURPRISE
+// ===============================
+
+// Get the surprise message
+app.get("/api/surprise", async (req, res) => {
+  try {
+    const surprise = await Surprise.findOne();
+
+    res.status(200).json({
+      success: true,
+      content: surprise ? surprise.content : "",
+    });
+  } catch (error) {
+    console.error("Error getting surprise:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not get the surprise.",
+    });
+  }
+});
+
+// Create or update the surprise message
+app.put("/api/surprise", async (req, res) => {
+  try {
+    const { content } = req.body;
+
+    let surprise = await Surprise.findOne();
+
+    if (surprise) {
+      surprise.content = content || "";
+      await surprise.save();
+    } else {
+      surprise = await Surprise.create({
+        content: content || "",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Surprise saved successfully ❤️",
+      surprise,
+    });
+  } catch (error) {
+    console.error("Error saving surprise:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Could not save the surprise.",
     });
   }
 });
